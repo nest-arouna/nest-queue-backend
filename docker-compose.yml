@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+
+  queue-app-nest-backend:
+    image: 'queue-app-nest-backend:latest'
+    build:
+      context: .
+    ports:
+      - "8089:8089"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://51.38.225.0:5432/nest_queue
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=1994
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+
+
+
+
+
+
