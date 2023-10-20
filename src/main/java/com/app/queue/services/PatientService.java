@@ -6,15 +6,12 @@ import com.app.queue.dto.request.PatientFinishedDtoRequest;
 import com.app.queue.dto.request.PatientReInsertDtoRequest;
 import com.app.queue.dto.response.InscrisDtoResponse;
 import com.app.queue.dto.response.PatientDtoResponse;
-import com.app.queue.dto.response.QueueDtoResponse;
 import com.app.queue.entities.Patient;
-import com.app.queue.entities.Queue;
 import com.app.queue.entities.Reponse;
 import com.app.queue.repositories.IDaoPatient;
 import com.app.queue.repositories.IDaoQueue;
 import com.app.queue.repositories.IDaoUser;
 import com.app.queue.utils.Utility;
-import org.apache.commons.lang3.time.DateUtils;
 import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +20,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Service
@@ -43,39 +42,132 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
         try
         {
             Patient patient =modelMapper.map(obj, Patient.class);
+            AtomicInteger my_size= new AtomicInteger(0);
+            AtomicInteger creneauIndex= new AtomicInteger(0);
 
             if(obj.getQueueID() != null)
             {
 
-                var nb_waiting_patient= patientRepository.findByQueueID(obj.getQueueID())
-                        .stream().count();
+                         // RDV PONCTUEL
+                        var patientPonctuals=   patientRepository.findByQueueID(obj.getQueueID())
+                        .stream()
+                        .filter( y-> y.isStatus() && !y.isFinished() && !y.isCanceled() && y.isDelay() && !y.isDelayMoreThanLimit()
+                                   || y.isStatus() && !y.isFinished() && !y.isCanceled() && !y.isDelay())
+                        .sorted(Comparator.comparing(Patient::getRdvHour))
+                        .collect(Collectors.toList());
+
+
+
+                       // RDV RETARD
+                        var patientRetards = patientRepository.findByQueueID(obj.getQueueID())
+                                .stream()
+                                .filter( y-> y.isStatus() && !y.isFinished() && !y.isCanceled() && y.isDelay() && y.isDelayMoreThanLimit())
+                                .sorted(Comparator.comparing(Patient::getArrivalOrRegistedHours))
+                                .collect(Collectors.toList());
+
+
+
+
 
 
                 queueRepository.findById(obj.getQueueID()).ifPresent(v->
                 {
+
+                        List<Long> list= new ArrayList<Long>();
+                       // le temps qui existe en le 1er et le dernier de la liste actuelle
+                       long size= 0;
+                       var firstPatient=patientPonctuals.stream().sorted(Comparator.comparing(Patient::getRdvHour)).findFirst();
+                        if(patientPonctuals.size() != 0 && firstPatient.isPresent())
+                        {
+                            size = (v.getQueueHourLastRdv()-firstPatient.get().getRdvHour())/(v.getSlot()*60000);
+                        }
+
+                        // plage horaire disponible
+
+                            for (int j=0;j< size;j++)
+                            {
+                                var creneauxTemp=Utility.currentSlot(v.getQueueHourStart(),v.getSlot(),j);
+                                if(patientPonctuals.stream().filter(w-> w.getRdvHour() ==creneauxTemp).count() == 0)
+                                {
+                                    list.add(creneauxTemp) ;
+                                }
+
+                             }
+                           list= list.stream().filter(q->q > firstPatient.get().getRdvHour()).collect(Collectors.toList());
+
+
+
+
+
+
+
+
+                    System.out.println(list.toString());
+
+
+
+
+
+
+
+
                     if(v.getIsRdv())
                     {
-                        v.setLastSlot(Utility.currentSlot(v.getLastSlot(),v.getSlot()));
-                        queueRepository.save(v);
-
-                        patient.setRdvHourTempon(nb_waiting_patient != 0 ? Utility.currentSlot(v.getLastSlot(),v.getSlot()) :Utility.currentSlot(0,v.getSlot()));
 
 
-
-
-
-                        if(obj.getRdvHour()  == 0)
-                        {
-                            patient.setDelay(true);
-                        }
-                        else if((obj.getArrivalOrRegistedHours() -obj.getRdvHour()) > 15*60*1000 )
+                         if(obj.getRdvHour()  == 0 || (obj.getRdvHour()  != 0 && (obj.getArrivalOrRegistedHours() -obj.getRdvHour()) > 15*60*1000 ))
                         {
                             patient.setDelay(true);
                             patient.setDelayMoreThanLimit(true);
+                            patientRetards.add(patient);
+                            for (int j=0;j< patientRetards.size();j++)
+                            {
+                                var patientRetard=patientRetards.get(j);
+                                if(j <= list.size())
+                                {
+                                    patientRetard.setRdvHourTempon(list.get(j));
+                                    patientRepository.save(patientRetard);
+
+                                }
+                                else
+                                {
+
+                                    patientRetard.setRdvHourTempon(v.getLastSlot()+v.getSlot());
+                                    patientRepository.save(patientRetard);
+                                    v.setLastSlot(v.getLastSlot()+v.getSlot());
+                                    v.setQueueHourLastRdv(patientRetard.getRdvHour());
+                                    queueRepository.save(v);
+
+                                }
+
+                            }
+
+
+
+
+
+
+
+
+
                         }
-                        else if((obj.getArrivalOrRegistedHours() -obj.getRdvHour()) <= 15*60*1000 && (obj.getArrivalOrRegistedHours() -obj.getRdvHour()) > 0 )
+                         if(obj.getRdvHour()  != 0 && (obj.getArrivalOrRegistedHours() -obj.getRdvHour()) <= 15*60*1000)
                         {
-                            patient.setDelay(true);
+
+                            patientPonctuals.add(patient);
+                            patientPonctuals
+                                    .stream()
+                                    .sorted(Comparator.comparing(Patient::getRdvHour))
+                                    .peek(o-> my_size.getAndIncrement())
+                                    .forEach(y->
+                                    {
+                                        y.setRdvHourTempon(my_size.get() != 0 ? Utility.currentSlot(v.getQueueHourStart(),v.getSlot(),my_size.get()) :v.getQueueHourStart());
+                                        patientRepository.save(y);
+                                        v.setLastSlot(my_size.get() != 0 ? Utility.currentSlot(v.getQueueHourStart(),v.getSlot(),my_size.get()) :v.getQueueHourStart());
+                                        v.setQueueHourLastRdv(y.getRdvHour());
+                                        queueRepository.save(v);
+                                    });
+
 
                         }
                     }

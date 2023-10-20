@@ -83,24 +83,14 @@ public final class Utility
 		}
 	}
 
-	public static long currentSlot(long lastSlot,long slot)
+	public static long currentSlot(long queueHourStart,long slot,int index)
 	{
-		Calendar calendar = Calendar.getInstance();
 
-		if(lastSlot ==  0)
-		{
-			calendar.setTime(new Date());
-			calendar.set(Calendar.HOUR_OF_DAY, 0);
-			calendar.set(Calendar.MINUTE, 0);
-			calendar.set(Calendar.SECOND, 0);
-			calendar.set(Calendar.MILLISECOND, 0);
+		    Calendar calendar = Calendar.getInstance();
+			calendar.setTime(new Date(queueHourStart + (slot*60000*index)));
 			calendar.getTime().getTime();
-			return calendar.getTime().getTime()+slot*60*1000;
+			return calendar.getTime().getTime();
 
-		}
-		else
-		{
-			return lastSlot+slot*60*1000;
-		}
 	}
+
 }

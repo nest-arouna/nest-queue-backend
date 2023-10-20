@@ -24,6 +24,7 @@ public class NextPatientDtoResponse
     private boolean status;
     private boolean finished;
     private long  waitingTime;
+    private long rdvHourTempon;
     private boolean delay;
     private boolean canceled;
     private String canceledMotif;

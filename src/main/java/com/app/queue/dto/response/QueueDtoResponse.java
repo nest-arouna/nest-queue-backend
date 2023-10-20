@@ -16,6 +16,7 @@ public class QueueDtoResponse
     private String type;
     private String doctor;
     private Boolean status;
+    private long queueHourStart;
     private long slot;
     private Date createdOn;
     private Date updatedOn;

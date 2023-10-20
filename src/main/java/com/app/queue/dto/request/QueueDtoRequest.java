@@ -13,6 +13,7 @@ public class QueueDtoRequest
     private UUID ID;
     private UUID doctorID;
     private String type;
+    private long queueHourStart;
     private Boolean isRdv;
     private long slot;
 

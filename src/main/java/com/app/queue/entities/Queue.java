@@ -23,6 +23,8 @@ public class Queue {
     private UUID ID;
     private UUID doctorID;
     private String type;
+    private long queueHourStart;
+    private long queueHourLastRdv;
     private long slot;
     private long lastSlot;
     private Boolean isRdv;
