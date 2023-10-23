@@ -165,10 +165,9 @@ public class QueueService implements  CrudService<QueueDtoRequest>{
 
                List<PatientDtoResponse> list_queues = patientRepository.findByQueueID(id)
                            .stream()
-                       .filter( y-> y.isStatus() && !y.isFinished() && !y.isCanceled() && y.isDelay() && !y.isDelayMoreThanLimit()
-                               || y.isStatus() && !y.isFinished() && !y.isCanceled() && !y.isDelay())
+                       .filter( y-> y.isStatus() && !y.isFinished() && !y.isCanceled())
                           .peek(o-> my_size.getAndIncrement())
-                           .sorted(Comparator.comparing(Patient::getRdvHourTempon))
+                           .sorted(Comparator.comparing(Patient::getRdvHour))
                            .map( v->
                                    {
                                        var patient=modelMapper.map(v, PatientDtoResponse.class);
