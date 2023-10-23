@@ -44,7 +44,6 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
             Patient patient =modelMapper.map(obj, Patient.class);
             AtomicInteger my_size= new AtomicInteger(0);
             AtomicInteger creneauIndex= new AtomicInteger(0);
-            System.out.println(" OBJ ........................  "+obj.toString());
 
             if(obj.getQueueID() != null)
             {
@@ -69,7 +68,6 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
 
 
 
-                System.out.println(" OBJ ........................ QUEUEID "+obj.getQueueID());
 
 
                 queueRepository.findById(obj.getQueueID()).ifPresent(v->
@@ -81,7 +79,7 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
 
 
 
-                    if(!v.getIsRdv() && !ifRdvHourIsBusy.isPresent())
+                    if(!v.getIsRdv() && !ifRdvHourIsBusy.isPresent() )
                     {
                         patient.setRdvHourTempon(obj.getArrivalOrRegistedHours());
                         Patient patientSave = patientRepository.save(patient);
@@ -92,7 +90,7 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
 
 
                     }
-                    else if(!v.getIsRdv() && ifRdvHourIsBusy.isPresent())
+                    else if(!v.getIsRdv() && ifRdvHourIsBusy.isPresent() )
                     {
                         reponse.setMessage("Cette heure est occupée");
                         logger.error("Cette heure est occupée ");
@@ -128,7 +126,6 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
 
                         if(ifRdvHourIsBusy.isPresent())
                         {
-                            System.out.println(" OBJ ........................ ifRdvHourIsBusy "+ifRdvHourIsBusy.isPresent());
 
                             if(!ifRdvHourIsBusy.get().isStatus() && ifRdvHourIsBusy.get().isFinished())
                             {
@@ -152,10 +149,6 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
                             {
 
 
-                                if(v.getIsRdv())
-                                {
-                                    System.out.println(" CALL ........................ getIsRdv ");
-
 
                                     patientPonctuals.add(patient);
                                     patientPonctuals
@@ -165,56 +158,92 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
                                             .forEach(y->
                                             {
                                                 y.setRdvHourTempon(my_size.get() != 0 ? Utility.currentSlot(v.getQueueHourStart(),v.getSlot(),my_size.get()) :v.getQueueHourStart());
-                                                patientRepository.save(y);
+                                                       patientRepository.save(y);
                                                 v.setLastSlot(my_size.get() != 0 ? Utility.currentSlot(v.getQueueHourStart(),v.getSlot(),my_size.get()) :v.getQueueHourStart());
                                                 v.setQueueHourLastRdv(y.getRdvHour());
-                                                queueRepository.save(v);
+                                                    queueRepository.save(v);
                                             });
 
 
-                                    ifRdvHourIsBusy.get().setDelay(true);
-                                    ifRdvHourIsBusy.get().setDelayMoreThanLimit(true);
-                                    patientRetards.add(ifRdvHourIsBusy.get());
-                                    System.out.println(" patientRetards.size() ........................ getIsRdv " +patientRetards.size());
-                                    System.out.println(" list.size() ........................ getIsRdv " +list.size());
-                                    System.out.println(" CALL ........................ getIsRdv ");
 
-                                    for (int j=0;j< patientRetards.size();j++)
+                                // RDV PONCTUEL NEW
+                                var newPatientPonctuals=   patientRepository.findByQueueID(obj.getQueueID())
+                                        .stream()
+                                        .filter( y-> y.isStatus() && !y.isFinished() && !y.isCanceled() && y.isDelay() && !y.isDelayMoreThanLimit()
+                                                || y.isStatus() && !y.isFinished() && !y.isCanceled() && !y.isDelay())
+                                        .sorted(Comparator.comparing(Patient::getRdvHour))
+                                        .collect(Collectors.toList());
+
+
+
+                                var newListPatientRetards = patientRepository.findByQueueID(obj.getQueueID())
+                                        .stream()
+                                        .filter( y-> y.isStatus() && !y.isFinished() && !y.isCanceled() && y.isDelay() && y.isDelayMoreThanLimit())
+                                        .sorted(Comparator.comparing(Patient::getArrivalOrRegistedHours))
+                                        .collect(Collectors.toList());
+
+
+
+
+                                List<Long> listNew= new ArrayList<Long>();
+                                // le temps qui existe en le 1er et le dernier de la liste actuelle
+                                long sizeNew= 0;
+                                var firstPatientNew=newPatientPonctuals.stream().sorted(Comparator.comparing(Patient::getRdvHour)).findFirst();
+
+                                if(newPatientPonctuals.size() != 0 && firstPatientNew.isPresent())
+                                {
+                                    sizeNew = ((v.getQueueHourLastRdv()-firstPatientNew.get().getRdvHour())/(v.getSlot()*60000));
+                                }
+                                // plage horaire disponible
+
+                                for (int j=0;j<=sizeNew;j++)
+                                {
+                                    var creneauxTemp=Utility.currentSlot(v.getQueueHourStart(),v.getSlot(),j);
+                                    if(newPatientPonctuals.stream().filter(w->   w.getRdvHour() ==creneauxTemp).count() == 0)
                                     {
-                                        var patientRetard=patientRetards.get(j);
-
-                                        if(list.size() > 0 && j <= list.size()-1)
-                                        {
-                                            patientRetard.setRdvHour(list.get(j));
-                                            patientRepository.save(patientRetard);
-
-                                        }
-                                        else
-                                        {
-
-                                            patientRetard.setRdvHourTempon(v.getLastSlot()+v.getSlot());
-                                            patientRepository.save(patientRetard);
-                                            v.setLastSlot(v.getLastSlot()+v.getSlot());
-                                            v.setQueueHourLastRdv(patientRetard.getRdvHour());
-                                            queueRepository.save(v);
-
-                                        }
-
+                                        listNew.add(creneauxTemp) ;
                                     }
 
-
-
-
-
-                                }
-                                else
-                                {
-                                    patient.setRdvHourTempon(obj.getArrivalOrRegistedHours());
-
                                 }
 
-                                Patient patientSave = patientRepository.save(patient);
-                                reponse.setData(modelMapper.map(patientSave, PatientDtoResponse.class));
+                                listNew= listNew.stream().filter(q->q <= v.getQueueHourLastRdv() && firstPatientNew.isPresent() && (q > firstPatientNew.get().getRdvHour())).collect(Collectors.toList());
+
+
+
+
+
+                                      for (int j=0;j< newListPatientRetards.size();j++)
+                                        {
+                                            var patientRetardNew=newListPatientRetards.get(j);
+
+                                            if(listNew.size() > 0 && j < listNew.size())
+                                            {
+
+                                                patientRetardNew.setRdvHour(listNew.get(j));
+                                                     patientRepository.save(patientRetardNew);
+                                            }
+                                            else
+                                            {
+
+
+                                               patientRetardNew.setRdvHour(v.getQueueHourLastRdv()+(v.getSlot()*60000));
+                                                patientRetardNew.setRdvHour(v.getQueueHourLastRdv()+(v.getSlot()*60000));
+                                                   patientRepository.save(patientRetardNew);
+
+                                                v.setLastSlot(v.getQueueHourLastRdv()+(v.getSlot()*60000));
+                                                v.setQueueHourLastRdv(patientRetardNew.getRdvHour());
+                                                  var ty= queueRepository.save(v);
+
+
+                                            }
+
+                                        }
+
+
+
+
+                                   Patient patientSave = patientRepository.save(patient);
+                                  reponse.setData(modelMapper.map(patientSave, PatientDtoResponse.class));
                                 reponse.setMessage("Le patient a été enregistré avec succès");
                                 logger.error("Le patient a été enregistré avec succès ");
                                 reponse.setCode(200);
@@ -224,16 +253,12 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
                         else
                         {
 
-                                System.out.println(" CALL ........................ getIsRdv ");
 
                                 if(obj.getRdvHour()  == 0 || (obj.getRdvHour()  != 0 && (obj.getArrivalOrRegistedHours() -obj.getRdvHour()) > 15*60*1000 ))
                                 {
                                     patient.setDelay(true);
                                     patient.setDelayMoreThanLimit(true);
                                     patientRetards.add(patient);
-                                    System.out.println(" patientRetards.size() ........................ getIsRdv " +patientRetards.size());
-                                    System.out.println(" list.size() ........................ getIsRdv " +list.size());
-                                    System.out.println(" CALL ........................ getIsRdv ");
 
                                     for (int j=0;j< patientRetards.size();j++)
                                     {
@@ -248,7 +273,7 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
                                         else
                                         {
 
-                                            patientRetard.setRdvHourTempon(v.getLastSlot()+v.getSlot());
+                                            patientRetard.setRdvHour(v.getLastSlot()+v.getSlot());
                                             patientRepository.save(patientRetard);
                                             v.setLastSlot(v.getLastSlot()+v.getSlot());
                                             v.setQueueHourLastRdv(patientRetard.getRdvHour());
@@ -870,7 +895,6 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
                             calendar.set(Calendar.MINUTE, 0);
                             calendar.set(Calendar.SECOND, 0);
                             calendar.set(Calendar.MILLISECOND, 0);
-                            System.out.println( v.getCreatedOn() +" CONVERT TO "+   calendar.getTime().toString());
                             return  (calendar.getTime().getTime() >= createdOnStart.longValue());
 
                         }})

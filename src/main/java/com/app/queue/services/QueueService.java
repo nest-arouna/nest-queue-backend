@@ -166,6 +166,17 @@ public class QueueService implements  CrudService<QueueDtoRequest>{
                List<PatientDtoResponse> list_queues = patientRepository.findByQueueID(id)
                            .stream()
                        .filter( y-> y.isStatus() && !y.isFinished() && !y.isCanceled())
+                       .filter( y-> {
+
+                           boolean a = y.isStatus() && !y.isFinished() && !y.isCanceled() && !y.isDelay() ;
+                           boolean b = y.isStatus() && !y.isFinished() && !y.isCanceled() && y.isDelay() && y.isDelay() && y.isDelayMoreThanLimit() ;
+
+                           boolean d =  (new Date().getTime()-y.getCreatedOn().getTime()) > 0;
+                           boolean c =   (new Date().getTime()-y.getCreatedOn().getTime()) -3600000 <=0 ;
+
+                           return a || (b && d && c) ;
+
+                       })
                           .peek(o-> my_size.getAndIncrement())
                            .sorted(Comparator.comparing(Patient::getRdvHour))
                            .map( v->
