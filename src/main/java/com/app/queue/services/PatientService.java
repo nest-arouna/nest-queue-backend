@@ -495,6 +495,9 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
 
         return reponse;
     }
+
+
+    
     @Override
     public Reponse getById(UUID ID) {
         Reponse reponse = new Reponse();
