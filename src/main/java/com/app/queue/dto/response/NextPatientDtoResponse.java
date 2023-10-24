@@ -30,5 +30,7 @@ public class NextPatientDtoResponse
     private String canceledMotif;
     private Date createdOn;
     private Date updatedOn;
+    private long createdPatient;
+
 
 }

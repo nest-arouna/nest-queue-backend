@@ -182,7 +182,7 @@ public class QueueService implements  CrudService<QueueDtoRequest>{
                            .map( v->
                                    {
                                        var patient=modelMapper.map(v, PatientDtoResponse.class);
-                                       patient.setWaitingTime(new Date().getTime()-v.getCreatedOn().getTime());
+                                       patient.setWaitingTime(new Date().getTime()-v.getCreatedPatient());
                                        return  patient;
                                    })
                            .collect(Collectors.toList());
@@ -503,7 +503,7 @@ public class QueueService implements  CrudService<QueueDtoRequest>{
                     .map( v->
                     {
                         var patient=modelMapper.map(v, PatientDtoResponse.class);
-                        patient.setWaitingTime(new Date().getTime()-v.getCreatedOn().getTime());
+                        patient.setWaitingTime(new Date().getTime()-v.getCreatedPatient());
                         return  patient;
                     })
                     .skip(skipCount)

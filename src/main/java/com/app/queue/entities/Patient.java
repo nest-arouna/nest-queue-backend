@@ -38,6 +38,7 @@ public  class Patient
     private long arrivalOrRegistedHours;
     private long rdvHour;
     private long rdvHourTempon;
+    private long createdPatient;
     @CreationTimestamp
     private Date createdOn;
     @UpdateTimestamp

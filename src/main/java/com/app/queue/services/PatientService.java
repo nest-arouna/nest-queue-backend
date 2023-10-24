@@ -42,6 +42,7 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
         try
         {
             Patient patient =modelMapper.map(obj, Patient.class);
+            patient.setCreatedPatient(new Date().getTime());
             AtomicInteger my_size= new AtomicInteger(0);
             AtomicInteger creneauIndex= new AtomicInteger(0);
 
