@@ -43,293 +43,107 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
         {
             Patient patient =modelMapper.map(obj, Patient.class);
             patient.setCreatedPatient(new Date().getTime());
-            AtomicInteger my_size= new AtomicInteger(0);
-            AtomicInteger creneauIndex= new AtomicInteger(0);
-
             if(obj.getQueueID() != null)
             {
-
-                         // RDV PONCTUEL
-                        var patientPonctuals=   patientRepository.findByQueueID(obj.getQueueID())
-                        .stream()
-                        .filter( y-> y.isStatus() && !y.isFinished() && !y.isCanceled() && y.isDelay() && !y.isDelayMoreThanLimit()
-                                   || y.isStatus() && !y.isFinished() && !y.isCanceled() && !y.isDelay())
-                        .sorted(Comparator.comparing(Patient::getRdvHour))
-                        .collect(Collectors.toList());
-
-
-
-                       // RDV RETARD
-                        var patientRetards = patientRepository.findByQueueID(obj.getQueueID())
-                                .stream()
-                                .filter( y-> y.isStatus() && !y.isFinished() && !y.isCanceled() && y.isDelay() && y.isDelayMoreThanLimit())
-                                .sorted(Comparator.comparing(Patient::getArrivalOrRegistedHours))
-                                .collect(Collectors.toList());
-
-
-
-
-
-
                 queueRepository.findById(obj.getQueueID()).ifPresent(v->
                 {
 
                     // RDV HEURE EST DISPONIBLE
                     var ifRdvHourIsBusy=patientRepository.findByQueueID(obj.getQueueID())
-                            .stream().filter(d-> obj.getRdvHour() != 0 && obj.getRdvHour() >= v.getQueueHourStart() &&  d.getRdvHour() == obj.getRdvHour()).findFirst();
+                            .stream()
+                            .sorted(Comparator.comparing(Patient::getCreatedOn).reversed())
+                            .filter(b->(v.getIsRdv() && obj.getRdvHour() != 0 && b.getRdvHour() == obj.getRdvHour()) || ( !v.getIsRdv() && b.getArrivalOrRegistedHours() == obj.getArrivalOrRegistedHours()))
+                            .findFirst();
 
-
-
-                    if(!v.getIsRdv() && !ifRdvHourIsBusy.isPresent() )
+                    if(v.getIsRdv() &&  obj.getRdvHour()!=0 &&  obj.getRdvHour() < v.getQueueHourStart() )
                     {
-                        patient.setRdvHourTempon(obj.getArrivalOrRegistedHours());
-                        Patient patientSave = patientRepository.save(patient);
-                        reponse.setData(modelMapper.map(patientSave, PatientDtoResponse.class));
-                        reponse.setMessage("Le patient a été enregistré avec succès");
-                        logger.error("Le patient a été enregistré avec succès ");
-                        reponse.setCode(200);
 
+                        reponse.setMessage("Cet heure de rdv n'est pas prise en compte par cette file  ");
+                        logger.error("Le patient occupant cet heure de rdv  est déjà passé ");
+                        reponse.setCode(201);
 
                     }
-                    else if(!v.getIsRdv() && ifRdvHourIsBusy.isPresent() )
+
+                    else if(ifRdvHourIsBusy.isPresent() && !ifRdvHourIsBusy.get().isStatus() &&  ifRdvHourIsBusy.get().isFinished())
                     {
-                        reponse.setMessage("Cette heure est occupée");
-                        logger.error("Cette heure est occupée ");
+
+                        reponse.setMessage("Le patient occupant cet heure de rdv  est déjà passé ");
+                        logger.error("Le patient occupant cet heure de rdv  est déjà passé ");
                         reponse.setCode(201);
+
+                    }
+                    else if(ifRdvHourIsBusy.isPresent() && ifRdvHourIsBusy.get().isStatus()  && ifRdvHourIsBusy.get().isCanceled())
+                    {
+
+                        reponse.setMessage("Cet heure de rdv  a été annulée ");
+                        logger.error("Cet heure de rdv  a été annulée");
+                        reponse.setCode(201);
+
+                    }
+                    else if(ifRdvHourIsBusy.isPresent() && ifRdvHourIsBusy.get().isStatus()  && !ifRdvHourIsBusy.get().isCanceled()  && !ifRdvHourIsBusy.get().isFinished())
+                    {
+
+                        reponse.setMessage("Cette heure est occupée");
+                        logger.error("Cette heure est occupée");
+                        reponse.setCode(201);
+
                     }
                     else
                     {
 
-                        List<Long> list= new ArrayList<Long>();
-                        // le temps qui existe en le 1er et le dernier de la liste actuelle
-                        long size= 0;
-                        var firstPatient=patientPonctuals.stream().sorted(Comparator.comparing(Patient::getRdvHour)).findFirst();
-
-                        if(patientPonctuals.size() != 0 && firstPatient.isPresent())
-                        {
-                            size = ((v.getQueueHourLastRdv()-firstPatient.get().getRdvHour())/(v.getSlot()*60000))-1;
-                        }
-
-                        // plage horaire disponible
-
-                        for (int j=1;j<= size+1;j++)
-                        {
-                            var creneauxTemp=Utility.currentSlot(v.getQueueHourStart(),v.getSlot(),j);
-                            if(patientPonctuals.stream().filter(w-> w.getRdvHour() ==creneauxTemp).count() == 0)
-                            {
-                                list.add(creneauxTemp) ;
-                            }
-
-                        }
-                        list= list.stream().filter(q-> firstPatient.isPresent() && (q > firstPatient.get().getRdvHour())).collect(Collectors.toList());
-
-
-
-                        if(ifRdvHourIsBusy.isPresent())
+                        if(!v.getIsRdv())
                         {
 
-                            if(!ifRdvHourIsBusy.get().isStatus() && ifRdvHourIsBusy.get().isFinished())
-                            {
-                                reponse.setMessage("Le patient occupant cet heure de rdv  est déjà passé ");
-                                logger.error("Le patient occupant cet heure de rdv  est déjà passé ");
-                                reponse.setCode(201);
-
-                            }
-
-                            else if((ifRdvHourIsBusy.get().isDelay() && !ifRdvHourIsBusy.get().isDelayMoreThanLimit())
-                                    || (ifRdvHourIsBusy.get().isStatus() && !ifRdvHourIsBusy.get().isFinished() && !ifRdvHourIsBusy.get().isCanceled() && !ifRdvHourIsBusy.get().isDelay() )
-                            )
-                            {
-                                reponse.setMessage("Ce créneau est occupé ");
-                                logger.error("Ce créneau est occupé ");
-                                reponse.setCode(201);
-
-
-                            }
-                            else
-                            {
-
-
-
-                                    patientPonctuals.add(patient);
-                                    patientPonctuals
-                                            .stream()
-                                            .sorted(Comparator.comparing(Patient::getRdvHour))
-                                            .peek(o-> my_size.getAndIncrement())
-                                            .forEach(y->
-                                            {
-                                                y.setRdvHourTempon(my_size.get() != 0 ? Utility.currentSlot(v.getQueueHourStart(),v.getSlot(),my_size.get()) :v.getQueueHourStart());
-                                                       patientRepository.save(y);
-                                                v.setLastSlot(my_size.get() != 0 ? Utility.currentSlot(v.getQueueHourStart(),v.getSlot(),my_size.get()) :v.getQueueHourStart());
-                                                v.setQueueHourLastRdv(y.getRdvHour());
-                                                    queueRepository.save(v);
-                                            });
-
-
-
-                                // RDV PONCTUEL NEW
-                                var newPatientPonctuals=   patientRepository.findByQueueID(obj.getQueueID())
-                                        .stream()
-                                        .filter( y-> y.isStatus() && !y.isFinished() && !y.isCanceled() && y.isDelay() && !y.isDelayMoreThanLimit()
-                                                || y.isStatus() && !y.isFinished() && !y.isCanceled() && !y.isDelay())
-                                        .sorted(Comparator.comparing(Patient::getRdvHour))
-                                        .collect(Collectors.toList());
-
-
-
-                                var newListPatientRetards = patientRepository.findByQueueID(obj.getQueueID())
-                                        .stream()
-                                        .filter( y-> y.isStatus() && !y.isFinished() && !y.isCanceled() && y.isDelay() && y.isDelayMoreThanLimit())
-                                        .sorted(Comparator.comparing(Patient::getArrivalOrRegistedHours))
-                                        .collect(Collectors.toList());
-
-
-
-
-                                List<Long> listNew= new ArrayList<Long>();
-                                // le temps qui existe en le 1er et le dernier de la liste actuelle
-                                long sizeNew= 0;
-                                var firstPatientNew=newPatientPonctuals.stream().sorted(Comparator.comparing(Patient::getRdvHour)).findFirst();
-
-                                if(newPatientPonctuals.size() != 0 && firstPatientNew.isPresent())
-                                {
-                                    sizeNew = ((v.getQueueHourLastRdv()-firstPatientNew.get().getRdvHour())/(v.getSlot()*60000));
-                                }
-                                // plage horaire disponible
-
-                                for (int j=0;j<=sizeNew;j++)
-                                {
-                                    var creneauxTemp=Utility.currentSlot(v.getQueueHourStart(),v.getSlot(),j);
-                                    if(newPatientPonctuals.stream().filter(w->   w.getRdvHour() ==creneauxTemp).count() == 0)
-                                    {
-                                        listNew.add(creneauxTemp) ;
-                                    }
-
-                                }
-
-                                listNew= listNew.stream().filter(q->q <= v.getQueueHourLastRdv() && firstPatientNew.isPresent() && (q > firstPatientNew.get().getRdvHour())).collect(Collectors.toList());
-
-
-
-
-
-                                      for (int j=0;j< newListPatientRetards.size();j++)
-                                        {
-                                            var patientRetardNew=newListPatientRetards.get(j);
-
-                                            if(listNew.size() > 0 && j < listNew.size())
-                                            {
-
-                                                patientRetardNew.setRdvHour(listNew.get(j));
-                                                     patientRepository.save(patientRetardNew);
-                                            }
-                                            else
-                                            {
-
-
-                                               patientRetardNew.setRdvHour(v.getQueueHourLastRdv()+(v.getSlot()*60000));
-                                                patientRetardNew.setRdvHour(v.getQueueHourLastRdv()+(v.getSlot()*60000));
-                                                   patientRepository.save(patientRetardNew);
-
-                                                v.setLastSlot(v.getQueueHourLastRdv()+(v.getSlot()*60000));
-                                                v.setQueueHourLastRdv(patientRetardNew.getRdvHour());
-                                                  var ty= queueRepository.save(v);
-
-
-                                            }
-
-                                        }
-
-
-
-
-                                   Patient patientSave = patientRepository.save(patient);
-                                  reponse.setData(modelMapper.map(patientSave, PatientDtoResponse.class));
-                                reponse.setMessage("Le patient a été enregistré avec succès");
-                                logger.error("Le patient a été enregistré avec succès ");
-                                reponse.setCode(200);
-                            }
-
-                        }
-                        else
-                        {
-
-
-                                if(obj.getRdvHour()  == 0 || (obj.getRdvHour()  != 0 && (obj.getArrivalOrRegistedHours() -obj.getRdvHour()) > 15*60*1000 ))
-                                {
-                                    patient.setDelay(true);
-                                    patient.setDelayMoreThanLimit(true);
-                                    patientRetards.add(patient);
-
-                                    for (int j=0;j< patientRetards.size();j++)
-                                    {
-                                        var patientRetard=patientRetards.get(j);
-
-                                        if(list.size() > 0 && j <= list.size()-1)
-                                        {
-                                            patientRetard.setRdvHour(list.get(j));
-                                            patientRepository.save(patientRetard);
-
-                                        }
-                                        else
-                                        {
-
-                                            patientRetard.setRdvHour(v.getLastSlot()+v.getSlot());
-                                            patientRepository.save(patientRetard);
-                                            v.setLastSlot(v.getLastSlot()+v.getSlot());
-                                            v.setQueueHourLastRdv(patientRetard.getRdvHour());
-                                            queueRepository.save(v);
-
-                                        }
-
-                                    }
-                                }
-                                if(obj.getRdvHour()  != 0 && (obj.getArrivalOrRegistedHours() -obj.getRdvHour()) <= 15*60*1000)
-                                {
-
-                                    patientPonctuals.add(patient);
-                                    patientPonctuals
-                                            .stream()
-                                            .sorted(Comparator.comparing(Patient::getRdvHour))
-                                            .peek(o-> my_size.getAndIncrement())
-                                            .forEach(y->
-                                            {
-                                                y.setRdvHourTempon(my_size.get() != 0 ? Utility.currentSlot(v.getQueueHourStart(),v.getSlot(),my_size.get()) :v.getQueueHourStart());
-                                                patientRepository.save(y);
-                                                v.setLastSlot(my_size.get() != 0 ? Utility.currentSlot(v.getQueueHourStart(),v.getSlot(),my_size.get()) :v.getQueueHourStart());
-                                                v.setQueueHourLastRdv(y.getRdvHour());
-                                                queueRepository.save(v);
-                                            });
-
-
-                                }
-
-
+                            patient.setRdvHourTempon(patient.getArrivalOrRegistedHours());
                             Patient patientSave = patientRepository.save(patient);
                             reponse.setData(modelMapper.map(patientSave, PatientDtoResponse.class));
                             reponse.setMessage("Le patient a été enregistré avec succès");
                             logger.error("Le patient a été enregistré avec succès ");
                             reponse.setCode(200);
+
                         }
-
-
-
+                        else
+                        {
+                            patient.setRdvHourTempon(patient.getRdvHour());
+                            if(obj.getRdvHour()  == 0 || (obj.getRdvHour()  != 0 && (obj.getArrivalOrRegistedHours() - obj.getRdvHour()) > v.getSlot()*60*1000 ))
+                            {
+                                patient.setDelay(true);
+                                patient.setDelayMoreThanLimit(true);
+                                Patient patientSave = patientRepository.save(patient);
+                                reponse.setData(modelMapper.map(patientSave, PatientDtoResponse.class));
+                                reponse.setMessage("Le patient a été enregistré avec succès");
+                                logger.error("Le patient a été enregistré avec succès ");
+                                reponse.setCode(200);
+                            }
+                           else if(obj.getRdvHour()  != 0 && ((obj.getArrivalOrRegistedHours() - obj.getRdvHour()) <= v.getSlot()*60*1000) && ((obj.getArrivalOrRegistedHours() - obj.getRdvHour()) >=0 ) )
+                            {
+                                patient.setDelay(true);
+                                Patient patientSave = patientRepository.save(patient);
+                                reponse.setData(modelMapper.map(patientSave, PatientDtoResponse.class));
+                                reponse.setMessage("Le patient a été enregistré avec succès");
+                                logger.error("Le patient a été enregistré avec succès ");
+                                reponse.setCode(200);
+                            }
+                            else if(obj.getRdvHour()  != 0 && ((obj.getArrivalOrRegistedHours() - obj.getRdvHour()) <= 0 ) )
+                            {
+                                Patient patientSave = patientRepository.save(patient);
+                                reponse.setData(modelMapper.map(patientSave, PatientDtoResponse.class));
+                                reponse.setMessage("Le patient a été enregistré avec succès");
+                                logger.error("Le patient a été enregistré avec succès ");
+                                reponse.setCode(200);
+                            }
+                            else
+                            {
+                                reponse.setMessage("Ce cas de rdv n'est pas prise en compte");
+                                logger.error("Ce cas de rdv n'est pas prise en compte ");
+                                reponse.setCode(201);
+                            }
+                        }
 
 
                     }
 
-
-
-
-
-
-
-
-
-
                 });
-
-
             }
             else
             {
@@ -345,7 +159,6 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
             reponse.setCode(500);
 
         }
-
         return reponse;
     }
 
@@ -497,7 +310,7 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
     }
 
 
-    
+
     @Override
     public Reponse getById(UUID ID) {
         Reponse reponse = new Reponse();
@@ -541,35 +354,7 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
 
             if(patient.isPresent())
             {
-
-                queueRepository.findById(queue.getQueueID()).ifPresent(c->
-                {
-
-                    if(c.getIsRdv())
-                    {
-                        patientRepository.findByQueueID(queue.getQueueID())
-                                .stream()
-                                .filter(y->y.isStatus() && y.isDelay() && y.isDelayMoreThanLimit() )
-                                .sorted(Comparator.comparing(Patient::getArrivalOrRegistedHours))
-                                .findFirst().ifPresent( b->{
-                                    b.setDelay(false);
-                                    patient.get().setQueueDelayID(b.getID());
-                                    b.setRdvHourTempon(patient.get().getRdvHourTempon());
-                                    patientRepository.save(b);
-                                } );
-
-
-                    }
-                    else
-                    {
-                        patient.get().setStatus(false);
-                    }
-
-
-                });
-
-
-
+                patient.get().setStatus(false);
                 patient.get().setCanceled(true);
                 patient.get().setCanceledMotif(queue.getCanceledMotif());
                 Patient userSave=patientRepository.save(patient.get());
@@ -699,32 +484,6 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
                 patient.get().setFinished(true);
                 patient.get().setFinishedHour(queue.getFinishedHour());
                 Patient userSave=patientRepository.save(patient.get());
-
-
-                var nb_waiting_patient= patientRepository.findByQueueID(queue.getQueueID())
-                        .stream()
-                        .filter(y->y.isStatus() && !y.isFinished() && !y.isCanceled() && !y.isDelay())
-                        .count();
-
-                if(nb_waiting_patient == 0)
-                {
-                    patientRepository.findByQueueID(queue.getQueueID())
-                            .stream()
-                            .filter(y->y.isStatus() && y.isDelay() && !y.isDelayMoreThanLimit() )
-                            .map( v->
-                            {
-                                v.setDelay(false);
-                                v.setInsert(false);
-                                v.setCanceled(false);
-                                return  patientRepository.save(v);
-                            })
-                            .collect(Collectors.toList());
-
-                }
-
-
-
-
                 reponse.setData(modelMapper.map(userSave, PatientDtoResponse.class));
                 reponse.setMessage("Ce patient  a  bien terminé avec succès");
                 logger.error("Ce patient  a  bien terminé  avec succès : "+patient.get().getPhone() + "- "+new Date());
@@ -948,9 +707,6 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
     }
     public Reponse getByDetail(UUID ID) {
         Reponse reponse = new Reponse();
-        AtomicInteger my_size= new AtomicInteger(0);
-        AtomicInteger number= new AtomicInteger(0);
-
         HashMap<String, Object> datas  = new HashMap<String, Object>();
         try
         {
@@ -963,27 +719,15 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
 
                     var patientWaiting = patientRepository.findByQueueID(patient.get().getQueueID())
                             .stream()
-                            .filter(y->y.isStatus() && !y.isFinished())
-                            .sorted(Comparator.comparing(Patient::getRdvHourTempon))
-                            .peek(o->
-                            {
-                                my_size.getAndIncrement();
-                                if(o.getID().compareTo(ID) == 0){ number.set(my_size.intValue()); }
-                            })
+                            .filter(y->y.isStatus() && !y.isFinished() && !y.isCanceled())
                             .count();
 
-                           List<PatientDtoResponse> list_queues = patientRepository.findByQueueID(patient.get().getQueueID())
-                            .stream()
-                            .filter(y->y.isStatus() && !y.isFinished())
-                            .peek(o-> my_size.getAndIncrement())
-                            .sorted(Comparator.comparing(Patient::getRdvHourTempon))
-                            .map( v->modelMapper.map(v, PatientDtoResponse.class))
-                            .collect(Collectors.toList());
+
 
                              userRepository.findById(queue.get().getDoctorID()).ifPresent( b-> datas.put("doctor",b.getLastname() + " "+b.getFirstname()));
                             datas.put("typeOfRdv", queue.get().getType());
-                            datas.put("patientWaiting",patientWaiting);
-                            datas.put("patientNumber", number);
+                            datas.put("patientWaiting",patientWaiting - 1);
+                            datas.put("patientNumber", patient.get().getArrivalOrRegistedHours());
                             reponse.setData(datas);
                             reponse.setMessage("Details du patient");
                             reponse.setCode(200);

@@ -40,14 +40,39 @@ public class QueueService implements  CrudService<QueueDtoRequest>{
         Reponse reponse = new Reponse();
         try
         {
+            if(obj.getDoctorID() != null)
+            {
+              var queueForDoctor=queueRepository.findByDoctorID(obj.getDoctorID())
+                      .stream()
+                      .filter((t->t.getStatus()))
+                      .count();
+              if(queueForDoctor > 0)
+              {
+                  reponse.setMessage("Cet médécin a déjà une file encours ");
+                  logger.error("Cet médécin a déjà une file encours");
+                  reponse.setCode(201);
+              }
+              else
+              {
+                  Queue queue =modelMapper.map(obj, Queue.class);
+                  queue.setStatus(true);
+                  Queue queueSave = queueRepository.save(queue);
+                  reponse.setData(modelMapper.map(queueSave, QueueDtoResponse.class));
+                  reponse.setMessage("La file a été enregistrée avec succès");
+                  logger.error("La file a été enregistrée avec succès ");
+                  reponse.setCode(200);
+              }
 
-            Queue queue =modelMapper.map(obj, Queue.class);
-            queue.setStatus(true);
-            Queue queueSave = queueRepository.save(queue);
-            reponse.setData(modelMapper.map(queueSave, QueueDtoResponse.class));
-            reponse.setMessage("La file a été enregistrée avec succès");
-            logger.error("La file a été enregistrée avec succès ");
-            reponse.setCode(200);
+
+            }
+            else
+            {
+                reponse.setMessage("Cet médécin n'existe plus ");
+                logger.error("Cet médécin n'existe plus ");
+                reponse.setCode(201);
+            }
+
+
 
         }
         catch (Exception e) {
@@ -162,23 +187,11 @@ public class QueueService implements  CrudService<QueueDtoRequest>{
            if(queue.isPresent())
            {
 
-
                List<PatientDtoResponse> list_queues = patientRepository.findByQueueID(id)
                            .stream()
-                       .filter( y-> y.isStatus() && !y.isFinished() && !y.isCanceled())
-                       .filter( y-> {
-
-                           boolean a = y.isStatus() && !y.isFinished() && !y.isCanceled() && !y.isDelay() ;
-                           boolean b = y.isStatus() && !y.isFinished() && !y.isCanceled() && y.isDelay() && y.isDelay() && y.isDelayMoreThanLimit() ;
-
-                           boolean d =  (new Date().getTime()-y.getCreatedOn().getTime()) > 0;
-                           boolean c =   (new Date().getTime()-y.getCreatedOn().getTime()) -3600000 <=0 ;
-
-                           return a || (b && d && c) ;
-
-                       })
+                           .filter( y-> y.isStatus() && !y.isDelay() ||(y.isStatus() && !y.isDelay()))
                           .peek(o-> my_size.getAndIncrement())
-                           .sorted(Comparator.comparing(Patient::getRdvHour))
+                           .sorted(Comparator.comparing(Patient::getRdvHourTempon))
                            .map( v->
                                    {
                                        var patient=modelMapper.map(v, PatientDtoResponse.class);
@@ -186,7 +199,7 @@ public class QueueService implements  CrudService<QueueDtoRequest>{
                                        return  patient;
                                    })
                            .collect(Collectors.toList());
-                  queues= list_queues.stream().skip(skipCount)
+                           queues= list_queues.stream().skip(skipCount)
                            .limit(size)
                            .collect(Collectors.toList());
 
@@ -381,46 +394,10 @@ public class QueueService implements  CrudService<QueueDtoRequest>{
             // RDV LIST WITHOUT CANCELED AND FINISHED QUEUE
             List<PatientDtoResponse> queues = patientRepository.findByQueueID(id)
                     .stream()
-                    .filter(y->y.isStatus() &&(y.isCanceled() || y.isDelay() ))
-                    .filter( y->
-                    {
-                        boolean d =  (new Date().getTime()-y.getCreatedOn().getTime()) > 0;
-                        boolean c =   (new Date().getTime()-y.getCreatedOn().getTime()) - 3600000 > 0 ;
-                        boolean e =   !y.isFinished() && y.isCanceled() && !y.isDelay() ;
-
-                        return  e || ( y.isDelay() && d  && c && y.isDelayMoreThanLimit());
-
-                    })
+                    .filter(y->!y.isStatus() && y.isCanceled())
                     .peek(o-> my_size.getAndIncrement())
                     .sorted(Comparator.comparing(Patient::getCreatedOn))
-                    .map( v->
-                            {
-                                var patient=modelMapper.map(v, PatientDtoResponse.class);
-                                var timeout=new Date().getTime()-patient.getArrivalOrRegistedHours();
-                                if( timeout >= 0 && timeout <=15*60*1000 )
-                                {
-                                    if(v.getQueueDelayID() != null)
-                                    {
-                                       patientRepository.findById(v.getQueueDelayID()).ifPresent(g->
-                                               {
-                                                  if(!g.isFinished())
-                                                  {
-                                                      patient.setReInsertable(true);
-
-                                                  }
-
-                                               });
-
-                                    }
-                                    else
-                                    {
-                                        patient.setReInsertable(true);
-
-                                    }
-
-                                }
-                                return  patient;
-                            })
+                    .map(p-> modelMapper.map(p, PatientDtoResponse.class))
                     .skip(skipCount)
                     .limit(size)
                     .collect(Collectors.toList());
@@ -489,14 +466,6 @@ public class QueueService implements  CrudService<QueueDtoRequest>{
             // RDV LIST WITHOUT CANCELED AND FINISHED QUEUE
             List<PatientDtoResponse> queues = patientRepository.findByQueueID(id)
                     .stream()
-                    .filter( y-> {
-
-                        boolean d =  (new Date().getTime()-y.getCreatedOn().getTime()) > 0;
-                        boolean c =   (new Date().getTime()-y.getCreatedOn().getTime()) -3600000 <=0 ;
-                        boolean e =   y.isStatus() && !y.isFinished() && !y.isCanceled() && y.isDelay() && y.isDelayMoreThanLimit() ;
-                        return e && d && c  ;
-
-                    })
                     .filter(y->y.isStatus()  && y.isDelay())
                     .peek(o-> my_size.getAndIncrement())
                     .sorted(Comparator.comparing(Patient::getArrivalOrRegistedHours))
