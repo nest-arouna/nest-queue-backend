@@ -24,6 +24,7 @@ public class InscrisDtoResponse
     private boolean delay;
     private Long  finishedHour;
     private Boolean canceled;
+    private long  waitingTime;
     private String canceledMotif;
     private Date createdOn;
     private Date updatedOn;
