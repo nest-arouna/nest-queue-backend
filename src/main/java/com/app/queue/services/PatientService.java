@@ -117,7 +117,6 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
                             }
                            else if(obj.getRdvHour()  != 0 && ((obj.getArrivalOrRegistedHours() - obj.getRdvHour()) <= v.getSlot()*60*1000) && ((obj.getArrivalOrRegistedHours() - obj.getRdvHour()) >=0 ) )
                             {
-                                patient.setDelay(true);
                                 Patient patientSave = patientRepository.save(patient);
                                 reponse.setData(modelMapper.map(patientSave, PatientDtoResponse.class));
                                 reponse.setMessage("Le patient a été enregistré avec succès");

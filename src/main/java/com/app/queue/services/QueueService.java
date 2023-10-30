@@ -471,8 +471,9 @@ public class QueueService implements  CrudService<QueueDtoRequest>{
                     .sorted(Comparator.comparing(Patient::getArrivalOrRegistedHours))
                     .map( v->
                     {
+                        v.setWaitingTime(new Date().getTime()-v.getCreatedPatient());
                         var patient=modelMapper.map(v, PatientDtoResponse.class);
-                        patient.setWaitingTime(new Date().getTime()-v.getCreatedPatient());
+                        patientRepository.save(v);
                         return  patient;
                     })
                     .skip(skipCount)
