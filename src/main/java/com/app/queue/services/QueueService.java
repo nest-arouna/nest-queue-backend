@@ -284,6 +284,15 @@ public class QueueService implements  CrudService<QueueDtoRequest>{
             {
                 queue.get().setStatus(false);
                 Queue userSave=queueRepository.save(queue.get());
+                patientRepository.findByQueueID(queue.get().getID())
+                                .stream().filter(f-> f.isDelay() && f.isStatus())
+                                .forEach( patient-> {
+                                    patient.setStatus(false);
+                                    patient.setFinished(true);
+                                    patient.setWaitingTime(new Date().getTime()-patient.getCreatedPatient());
+                                    patient.setFinishedHour(new Date().getTime());
+                                    patientRepository.save(patient);
+                                });
                 reponse.setData(modelMapper.map(userSave, QueueDtoResponse.class));
                 reponse.setMessage("Cette file  a été bloquée avec succès");
                 logger.error("Cette file  a été bloquée avec succès ");

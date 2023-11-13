@@ -356,6 +356,7 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
                 patient.get().setStatus(false);
                 patient.get().setCanceled(true);
                 patient.get().setCanceledMotif(queue.getCanceledMotif());
+                patient.get().setWaitingTime(new Date().getTime()-patient.get().getCreatedPatient());
                 Patient userSave=patientRepository.save(patient.get());
                 reponse.setData(modelMapper.map(userSave, PatientDtoResponse.class));
                 reponse.setMessage("Ce patient  a été bien retiré avec succès");
@@ -481,6 +482,7 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
 
                 patient.get().setStatus(false);
                 patient.get().setFinished(true);
+                patient.get().setWaitingTime(new Date().getTime()-patient.get().getCreatedPatient());
                 patient.get().setFinishedHour(queue.getFinishedHour());
                 Patient userSave=patientRepository.save(patient.get());
                 reponse.setData(modelMapper.map(userSave, PatientDtoResponse.class));
