@@ -18,6 +18,7 @@ public class PatientDtoRequest
     private String lastname;
     private String firstname;
     private long birthDay;
+    private long orderNumber;
     private long rdvHour;
     private String phone;
     private long arrivalOrRegistedHours;

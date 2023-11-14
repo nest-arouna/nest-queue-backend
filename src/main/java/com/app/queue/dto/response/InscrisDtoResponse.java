@@ -19,6 +19,7 @@ public class InscrisDtoResponse
     private Long rdvHour;
     private String phone;
     private Long arrivalOrRegistedHours;
+    private long orderNumber;
     private boolean status;
     private Boolean finished;
     private boolean delay;

@@ -36,6 +36,7 @@ public  class Patient
     private long  finishedHour;
     private boolean status=true;
     private long arrivalOrRegistedHours;
+    private long orderNumber;
     private long  waitingTime;
     private long rdvHour;
     private long rdvHourTempon;

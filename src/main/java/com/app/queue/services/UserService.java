@@ -498,6 +498,8 @@ public class UserService implements  CrudService<UserDtoRequest>
             if(user.isPresent())
             {
 
+                System.out.println(changePasswordDtoRequest.toString());
+
                 if((bCryptPasswordEncoder.matches(changePasswordDtoRequest.getOldPassword(), user.get().getPassword())) || changePasswordDtoRequest.getIsAdmin() == 1 )
                 {
                     String pwdCryp = bCryptPasswordEncoder.encode(changePasswordDtoRequest.getNewPassword());
@@ -513,7 +515,8 @@ public class UserService implements  CrudService<UserDtoRequest>
                 else
                 {
                     response.setCode(201);
-                    response.setMessage("L'ancien mot de passe est incorrect !");                            logger.error("Cet email est déjà utilisé svp ");
+                    response.setMessage("L'ancien mot de passe est incorrect !");
+                    logger.error("Cet email est déjà utilisé svp ");
                     logger.error("L'ancien mot de passe est incorrect  ");
 
                 }

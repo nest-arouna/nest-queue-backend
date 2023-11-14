@@ -96,7 +96,12 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
 
                             patient.setRdvHourTempon(patient.getArrivalOrRegistedHours());
                             Patient patientSave = patientRepository.save(patient);
-                            reponse.setData(modelMapper.map(patientSave, PatientDtoResponse.class));
+                            var patientWaiting = patientRepository.findByQueueID(patientSave.getQueueID())
+                                    .stream()
+                                    .count();
+                            patientSave.setOrderNumber(patientWaiting);
+                            Patient patientSaveC = patientRepository.save(patient);
+                            reponse.setData(modelMapper.map(patientSaveC, PatientDtoResponse.class));
                             reponse.setMessage("Le patient a été enregistré avec succès");
                             logger.error("Le patient a été enregistré avec succès ");
                             reponse.setCode(200);
@@ -728,6 +733,7 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
                              userRepository.findById(queue.get().getDoctorID()).ifPresent( b-> datas.put("doctor",b.getLastname() + " "+b.getFirstname()));
                             datas.put("typeOfRdv", queue.get().getType());
                             datas.put("patientWaiting",patientWaiting - 1);
+                            datas.put("orderNumber",patient.get().getOrderNumber());
                             datas.put("patientNumber", patient.get().getArrivalOrRegistedHours());
                             reponse.setData(datas);
                             reponse.setMessage("Details du patient");

@@ -20,6 +20,7 @@ public class PatientDtoResponse
     private String phone;
     private long arrivalOrRegistedHours;
     private boolean delayMoreThanLimit;
+    private long orderNumber;
     private long rdvHourTempon;
     private boolean status;
     private boolean finished;
