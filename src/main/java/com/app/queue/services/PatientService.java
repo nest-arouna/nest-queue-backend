@@ -11,7 +11,6 @@ import com.app.queue.entities.Reponse;
 import com.app.queue.repositories.IDaoPatient;
 import com.app.queue.repositories.IDaoQueue;
 import com.app.queue.repositories.IDaoUser;
-import com.app.queue.utils.Utility;
 import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,9 +18,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 @Service

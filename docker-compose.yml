@@ -7,11 +7,11 @@ services:
     build:
       context: .
     ports:
-      - "8089:8089"
+      - "8080:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://51.38.225.0:5432/nest_queue
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=1994
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://41.208.131.27:5432/nest_queue
+      - SPRING_DATASOURCE_USERNAME=nest2023
+      - SPRING_DATASOURCE_PASSWORD=nest#@2023!
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
 
 

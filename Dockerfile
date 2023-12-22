@@ -6,7 +6,7 @@ WORKDIR /app
 RUN mkdir /app/logs
 RUN chmod 777 /app/logs
 #expose app port
-EXPOSE 8089
+EXPOSE 8080
 # create variable
 ARG JAR_FILE=target/*.jar
 # Copy the Spring Boot application JAR file into the Docker image

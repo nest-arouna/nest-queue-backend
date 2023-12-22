@@ -1,5 +1,6 @@
 package com.app.queue.services;
 
+import com.app.queue.dto.request.SmsDtoRequest;
 import com.app.queue.dto.request.UserDtoRequest;
 import com.app.queue.dto.response.UserDtoResponse;
 import com.app.queue.entities.*;
@@ -30,6 +31,9 @@ public class UserService implements  CrudService<UserDtoRequest>
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     @PersistenceContext
     private EntityManager entityManager;
+    @Autowired(required=true)
+    private NotificationService notificationService;
+
     @Autowired
     private AuthenticationManager authenticationManager;
     @Autowired
@@ -569,7 +573,7 @@ public class UserService implements  CrudService<UserDtoRequest>
 
 
     public void initAccount() {
-
+        this.notificationService.sendSms(new SmsDtoRequest("775073511","BONJOUR AROUNA"));
         UserDtoRequest userDtoRequest = new UserDtoRequest();
         userDtoRequest.setRole(String.valueOf(EnumUser.ADMIN));
         userDtoRequest.setEmail("arouna.sanou@nest.sn");
