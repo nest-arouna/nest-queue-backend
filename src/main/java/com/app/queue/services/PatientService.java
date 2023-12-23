@@ -354,12 +354,22 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
 
             if(patient.isPresent())
             {
+                var first= patientRepository.findByQueueID(queue.getQueueID())
+                        .stream()
+                        .filter( y-> y.isStatus() && !y.isDelay() ||(y.isStatus() && !y.isDelay()))
+                        .sorted(Comparator.comparing(Patient::getRdvHourTempon))
+                        .findFirst();
+
                 patient.get().setStatus(false);
                 patient.get().setCanceled(true);
                 patient.get().setCanceledMotif(queue.getCanceledMotif());
                 patient.get().setWaitingTime(new Date().getTime()-patient.get().getCreatedPatient());
                 Patient userSave=patientRepository.save(patient.get());
-                sendNotification(queue.getQueueID());
+                first.ifPresent(h->{
+                    if(h.getID().compareTo(queue.getPatientID()) == 0){
+                        sendNotification(queue.getQueueID());
+                    }
+                });
                 reponse.setData(modelMapper.map(userSave, PatientDtoResponse.class));
                 reponse.setMessage("Ce patient  a été bien retiré avec succès");
                 logger.error("Ce patient  a été bien retiré  avec succès : "+patient.get().getPhone() + "- "+new Date());
@@ -482,12 +492,21 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
             if(patient.isPresent())
             {
 
+              var first= patientRepository.findByQueueID(queue.getQueueID())
+                        .stream()
+                        .filter( y-> y.isStatus() && !y.isDelay() ||(y.isStatus() && !y.isDelay()))
+                        .sorted(Comparator.comparing(Patient::getRdvHourTempon))
+                        .findFirst();
                 patient.get().setStatus(false);
                 patient.get().setFinished(true);
                 patient.get().setWaitingTime(new Date().getTime()-patient.get().getCreatedPatient());
                 patient.get().setFinishedHour(queue.getFinishedHour());
                 Patient userSave=patientRepository.save(patient.get());
-                sendNotification(queue.getQueueID());
+                first.ifPresent(h->{
+                if(h.getID().compareTo(queue.getPatientID()) == 0){
+                    sendNotification(queue.getQueueID());
+                }
+            });
                 reponse.setData(modelMapper.map(userSave, PatientDtoResponse.class));
                 reponse.setMessage("Ce patient  a  bien terminé avec succès");
                 logger.error("Ce patient  a  bien terminé  avec succès : "+patient.get().getPhone() + "- "+new Date());
