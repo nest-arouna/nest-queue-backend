@@ -1,9 +1,6 @@
 package com.app.queue.services;
 
-import com.app.queue.dto.request.PatientCancelDtoRequest;
-import com.app.queue.dto.request.PatientDtoRequest;
-import com.app.queue.dto.request.PatientFinishedDtoRequest;
-import com.app.queue.dto.request.PatientReInsertDtoRequest;
+import com.app.queue.dto.request.*;
 import com.app.queue.dto.response.InscrisDtoResponse;
 import com.app.queue.dto.response.PatientDtoResponse;
 import com.app.queue.entities.Patient;
@@ -18,11 +15,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Service
 public class PatientService implements  CrudService<PatientDtoRequest>{
     private static final Logger logger = LoggerFactory.getLogger(PatientService.class);
+    @Autowired(required=true)
+    private NotificationService notificationService;
     @Autowired
     private IDaoPatient patientRepository;
     @Autowired
@@ -359,6 +359,7 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
                 patient.get().setCanceledMotif(queue.getCanceledMotif());
                 patient.get().setWaitingTime(new Date().getTime()-patient.get().getCreatedPatient());
                 Patient userSave=patientRepository.save(patient.get());
+                sendNotification(queue.getQueueID());
                 reponse.setData(modelMapper.map(userSave, PatientDtoResponse.class));
                 reponse.setMessage("Ce patient  a été bien retiré avec succès");
                 logger.error("Ce patient  a été bien retiré  avec succès : "+patient.get().getPhone() + "- "+new Date());
@@ -486,6 +487,7 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
                 patient.get().setWaitingTime(new Date().getTime()-patient.get().getCreatedPatient());
                 patient.get().setFinishedHour(queue.getFinishedHour());
                 Patient userSave=patientRepository.save(patient.get());
+                sendNotification(queue.getQueueID());
                 reponse.setData(modelMapper.map(userSave, PatientDtoResponse.class));
                 reponse.setMessage("Ce patient  a  bien terminé avec succès");
                 logger.error("Ce patient  a  bien terminé  avec succès : "+patient.get().getPhone() + "- "+new Date());
@@ -760,4 +762,41 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
 
         return reponse;
     }
+
+
+    private boolean sendNotification(UUID queueID)
+    {
+        boolean result=false;
+        try
+        {
+            var queue= queueRepository.findById(queueID);
+            if(queue.isPresent())
+            {
+
+                var pa = patientRepository.findByQueueID(queueID)
+                        .stream()
+                        .filter( y-> y.isStatus() && !y.isDelay() ||(y.isStatus() && !y.isDelay()))
+                        .sorted(Comparator.comparing(Patient::getRdvHourTempon))
+                        .findFirst();
+
+                pa.ifPresent(y->{
+
+                    String contentMessage="Bonjour Monsieur/Madame:"+y.getFirstname() + " " +y.getLastname()+"\n" +
+                            "C'est bientôt votre tour. Vous êtes le prochain à passer dans la file d'attente. Merci.";
+
+                    this.notificationService.sendSms(new SmsDtoRequest(y.getPhone(),contentMessage));
+
+                });
+            }
+        }
+        catch (Exception e) {
+            logger.error(" error d'envoi de message PatientService  "+e.getMessage());
+
+        }
+
+        return result;
+    }
+
+
+
 }

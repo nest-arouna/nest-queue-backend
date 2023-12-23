@@ -56,6 +56,7 @@ public class NotificationService  implements  INotificationService {
             if (responseCode == 200)
             {
                result=true;
+                logger.error("sms a été envoyé au numéro NotificationService: "+ sms.getPhone());
 
             }
 
@@ -63,7 +64,7 @@ public class NotificationService  implements  INotificationService {
 
         catch(Exception e)
         {
-            logger.error("sms non envoyé au numéro: "+ sms.getPhone());
+            logger.error("sms non envoyé au numéro NotificationService: "+ sms.getPhone());
 
         }
 
