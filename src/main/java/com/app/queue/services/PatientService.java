@@ -803,7 +803,7 @@ public class PatientService implements  CrudService<PatientDtoRequest>{
                     String contentMessage="Bonjour Monsieur/Madame:"+y.getFirstname() + " " +y.getLastname()+"\n" +
                             "C'est bientôt votre tour. Vous êtes le prochain à passer dans la file d'attente. Merci.";
 
-                    this.notificationService.sendSms(new SmsDtoRequest(y.getPhone(),contentMessage));
+               //     this.notificationService.sendSms(new SmsDtoRequest(y.getPhone(),contentMessage));
 
                 });
             }
